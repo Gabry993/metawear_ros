@@ -6,15 +6,15 @@ The package attempts to mimic [myo_ros_osx](https://github.com/bgromov/myo_ros_o
 
 ### Published topics
 
- * `/accel` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - corrected acceleration
- * `/altitude` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - only Z-axis
- * `/battery_state` ([sensor_msgs/BatteryState](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/BatteryState.html))
- * `/button` ([std_msgs/Bool](http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html))
- * `/gyro` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - corrected gyroscope
- * `/illuminance` ([sensor_msgs/Illuminance](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/Illuminance.html))
- * `/rotation` ([geometry_msgs/QuaternionStamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/QuaternionStamped.html))
- * `/temperature` ([sensor_msgs/Temperature](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/Temperature.html))
- * `tf`
+ * `~/accel` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - corrected acceleration
+ * `~/altitude` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - only Z-axis
+ * `~/battery_state` ([sensor_msgs/BatteryState](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/BatteryState.html))
+ * `~/button` ([std_msgs/Bool](http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html))
+ * `~/gyro` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - corrected gyroscope
+ * `~/illuminance` ([sensor_msgs/Illuminance](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/Illuminance.html))
+ * `~/rotation` ([geometry_msgs/QuaternionStamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/QuaternionStamped.html))
+ * `~/temperature` ([sensor_msgs/Temperature](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/Temperature.html))
+ * `/tf`
 
 
 ### Subscribed topics
