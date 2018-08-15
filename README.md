@@ -20,7 +20,7 @@ The package attempts to mimic [myo_ros_osx](https://github.com/bgromov/myo_ros_o
 ### Subscribed topics
 
  * `~/vibration2` ([std_msgs/Duration](http://docs.ros.org/melodic/api/std_msgs/html/msg/Duration.html))
- * `~/led` ([std_msgs/ColorRGBA](http://docs.ros.org/melodic/api/std_msgs/html/msg/ColorRGBA.html))
+ * `~/led` ([std_msgs/ColorRGBA](http://docs.ros.org/melodic/api/std_msgs/html/msg/ColorRGBA.html)) - Sets RGB color of LED, uses alpha channel to control brightness.
  * `~/reset_board` ([std_msgs/Bool](http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html)) - send `True` to this topic to perform the board soft reset.
 
 ### Parameters
