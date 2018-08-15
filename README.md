@@ -6,17 +6,22 @@ The package attempts to mimic [myo_ros_osx](https://github.com/bgromov/myo_ros_o
 
 ### Published topics
 
- * `~/rotation` (geometry_msgs/QuaternionStamped)
- * `~/accel` (geometry_msgs/Vector3Stamped) -- corrected acceleration
- * `~/gyro` (geometry_msgs/Vector3Stamped) -- corrected gyroscope
- * `~/button` (std_msgs/Bool)
+ * `/accel` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - corrected acceleration
+ * `/altitude` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - only Z-axis
+ * `/battery_state` ([sensor_msgs/BatteryState](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/BatteryState.html))
+ * `/button` ([std_msgs/Bool](http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html))
+ * `/gyro` ([geometry_msgs/Vector3Stamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/Vector3Stamped.html)) - corrected gyroscope
+ * `/illuminance` ([sensor_msgs/Illuminance](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/Illuminance.html))
+ * `/rotation` ([geometry_msgs/QuaternionStamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/QuaternionStamped.html))
+ * `/temperature` ([sensor_msgs/Temperature](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/Temperature.html))
  * `tf`
+
 
 ### Subscribed topics
 
- * `~/vibration2` (std_msgs/Duration)
- * `~/led` (std_msgs/ColorRGBA)
- * `~/reset_board` (std_msgs/Bool) -- performs board soft reset
+ * `~/vibration2` ([std_msgs/Duration](http://docs.ros.org/melodic/api/std_msgs/html/msg/Duration.html))
+ * `~/led` ([std_msgs/ColorRGBA](http://docs.ros.org/melodic/api/std_msgs/html/msg/ColorRGBA.html))
+ * `~/reset_board` ([std_msgs/Bool](http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html)) - send `True` to this topic to perform the board soft reset.
 
 ### Parameters
 
