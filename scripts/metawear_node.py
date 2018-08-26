@@ -11,9 +11,11 @@ from mbientlab.metawear.cbindings import SensorFusionData, SensorFusionGyroRange
 from mbientlab.metawear.cbindings import LedPattern
 
 import rospy
-from std_msgs.msg import Bool, Float32, Duration, ColorRGBA
+from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped, TransformStamped
 from sensor_msgs.msg import BatteryState, Temperature, Illuminance, FluidPressure
+
+from metawear_ros.msg import CalibrationState
 
 import tf2_ros
 import tf2_geometry_msgs
@@ -39,6 +41,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         rotation_topic = rospy.get_param('~rotation_topic', '~rotation')
         accel_topic = rospy.get_param('~accel_topic', '~accel')
         gyro_topic = rospy.get_param('~gyro_topic', '~gyro')
+        calib_state_topic = rospy.get_param('~calib_state_topic', '~calibration_state')
         button_topic = rospy.get_param('~button_topic', '~button')
         battery_topic = rospy.get_param('~battery_topic', '~battery_state')
         temperature_topic = rospy.get_param('~temperature_topic', '~temperature')
@@ -64,6 +67,10 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.pub_gyro = rospy.Publisher(gyro_topic, Vector3Stamped,
             subscriber_listener = self, queue_size = 10)
         self.gyro_topic = self.track_topic(gyro_topic)
+
+        self.pub_calib_state = rospy.Publisher(calib_state_topic, CalibrationState,
+            subscriber_listener = self, queue_size = 10)
+        self.calib_state_topic = self.track_topic(calib_state_topic)
 
         self.pub_button = rospy.Publisher(button_topic, Bool,
             subscriber_listener = self, queue_size = 10, latch=(not self.republish_button))
@@ -166,7 +173,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.mwc.sensorfusion.notifications(
             quaternion_callback = self.mwc_quat_cb if self.peers_count[self.rotation_topic] else None,
             corrected_acc_callback = self.mwc_acc_cb if self.peers_count[self.accel_topic] else None,
-            corrected_gyro_callback = self.mwc_gyro_cb if self.peers_count[self.gyro_topic] else None)
+            corrected_gyro_callback = self.mwc_gyro_cb if self.peers_count[self.gyro_topic] else None,
+            calibration_state_callback = self.mwc_calib_state_cb if self.peers_count[self.calib_state_topic] else None)
 
         self.mwc.switch.notifications(self.mwc_switch_cb if self.peers_count[self.button_topic] else None)
 
@@ -266,6 +274,19 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         self.pub_gyro.publish(gyro)
         # rospy.loginfo_throttle(1.0, 'gyro: {}'.format(data))
+
+    def mwc_calib_state_cb(self, data):
+        now = rospy.Time.now()
+
+        calib = CalibrationState()
+        calib.header.stamp = rospy.Time(data['epoch'] / 1000.0) #now
+        calib.accelerometer = data['value'].accelrometer # <<-- typo!
+        calib.gyroscope = data['value'].gyroscope
+        calib.magnetometer = data['value'].magnetometer
+
+        self.pub_calib_state.publish(calib)
+
+        # rospy.loginfo(data)
 
     def mwc_switch_cb(self, data):
         now = rospy.Time.now()
@@ -379,6 +400,10 @@ class MetaWearRos(rospy.SubscribeListener, object):
         else:
             rospy.logwarn('Attempt to reset the board with \'data: false\'')
 
+    def poll_calibration_state(self):
+        if self.peers_count[self.calib_state_topic]:
+            self.mwc.sensorfusion.read_calibration_state()
+
     def run(self):
         loop_rate = rospy.Rate(self.publish_rate)
 
@@ -388,6 +413,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
                 if self.republish_button:
                     self.pub_button.publish(self.button_val)
+
+                self.poll_calibration_state()
 
             except rospy.ROSException, e:
                 if e.message == 'ROS time moved backwards':
