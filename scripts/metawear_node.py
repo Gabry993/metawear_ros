@@ -252,12 +252,19 @@ class MetaWearRos(rospy.SubscribeListener, object):
     def mwc_acc_cb(self, data):
         now = rospy.Time.now()
 
+        a = kdl.Vector(data['value'].x, data['value'].y, data['value'].z)
+
+        if self.mimic_myo_frame:
+            # Make x-axis point towards elbow
+            corr_a =  kdl.Rotation.RPY(0.0, 0.0, math.pi / 2) * a
+            a = corr_a
+
         accel = Vector3Stamped()
         accel.header.stamp = rospy.Time(data['epoch'] / 1000.0) #now
         accel.header.frame_id = self.frame_id
-        accel.vector.x = data['value'].x
-        accel.vector.y = data['value'].y
-        accel.vector.z = data['value'].z
+        accel.vector.x = a.x()
+        accel.vector.y = a.y()
+        accel.vector.z = a.z()
 
         self.pub_accel.publish(accel)
         # rospy.loginfo_throttle(1.0, 'acc: {}'.format(data))
@@ -265,12 +272,19 @@ class MetaWearRos(rospy.SubscribeListener, object):
     def mwc_gyro_cb(self, data):
         now = rospy.Time.now()
 
+        g = kdl.Vector(data['value'].x, data['value'].y, data['value'].z)
+
+        if self.mimic_myo_frame:
+            # Make x-axis point towards elbow
+            corr_g =  kdl.Rotation.RPY(0.0, 0.0, math.pi / 2) * g
+            g = corr_g
+
         gyro = Vector3Stamped()
         gyro.header.stamp = rospy.Time(data['epoch'] / 1000.0) #now
         gyro.header.frame_id = self.frame_id
-        gyro.vector.x = data['value'].x
-        gyro.vector.y = data['value'].y
-        gyro.vector.z = data['value'].z
+        gyro.vector.x = g.x()
+        gyro.vector.y = g.y()
+        gyro.vector.z = g.z()
 
         self.pub_gyro.publish(gyro)
         # rospy.loginfo_throttle(1.0, 'gyro: {}'.format(data))
