@@ -37,6 +37,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.address = rospy.get_param('~address')
         self.interface = rospy.get_param('~interface', 'hci0')
         self.mwc = MetaWearClient(self.address, self.interface, connect=False)
+        self.is_connected = False
 
         rotation_topic = rospy.get_param('~rotation_topic', '~rotation')
         accel_topic = rospy.get_param('~accel_topic', '~accel')
@@ -116,13 +117,15 @@ class MetaWearRos(rospy.SubscribeListener, object):
     def peer_subscribe(self, topic_name, topic_publish, peer_publish):
         rospy.loginfo('New subscriber on: %s', topic_name)
         self.peers_count[topic_name] = self.peers_count[topic_name] + 1
-        if self.mwc.mw.is_connected:
+        # if self.mwc.mw.is_connected:
+        if self.is_connected:
             self.update_enabled_streams()
 
     def peer_unsubscribe(self, topic_name, num_peers):
         rospy.loginfo('Subscribers left on %s: %d', topic_name, num_peers)
         self.peers_count[topic_name] = num_peers
-        if self.mwc.mw.is_connected:
+        # if self.mwc.mw.is_connected:
+        if self.is_connected:
             self.update_enabled_streams()
 
     def connect(self):
@@ -168,6 +171,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
         except PyMetaWearException:
             rospy.logerr('Unable to configure the sensors. Please try to reset the board')
             # self.reset_board_cb(Bool(True))
+
+        self.is_connected = True
 
     def update_enabled_streams(self):
         self.mwc.sensorfusion.notifications(
