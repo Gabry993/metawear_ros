@@ -143,13 +143,13 @@ class MetaWearRos(rospy.SubscribeListener, object):
             rospy.loginfo('Configuring sensors...')
             rospy.loginfo('Setting IMU sensor fusion mode')
             self.mwc.sensorfusion.set_mode(SensorFusionMode.SLEEP)
-            # self.mwc.sensorfusion.set_mode(SensorFusionMode.IMU_PLUS)
-            self.mwc.sensorfusion.set_mode(SensorFusionMode.NDOF)
-            rospy.sleep(0.2)
+            self.mwc.sensorfusion.set_mode(SensorFusionMode.IMU_PLUS)
+            #self.mwc.sensorfusion.set_mode(SensorFusionMode.NDOF)
+            rospy.sleep(0.5)
 
             rospy.loginfo('Setting IMU sensors range')
-            self.mwc.sensorfusion.set_acc_range(SensorFusionAccRange._16G)
-            self.mwc.sensorfusion.set_gyro_range(SensorFusionGyroRange._2000DPS)
+            #self.mwc.sensorfusion.set_acc_range(SensorFusionAccRange._16G)
+            #self.mwc.sensorfusion.set_gyro_range(SensorFusionGyroRange._2000DPS)
             rospy.sleep(0.2)
 
             rospy.loginfo('Setting IMU sensor fusion sampling rates')
