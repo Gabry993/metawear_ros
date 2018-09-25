@@ -8,12 +8,13 @@ from pymetawear.exceptions import PyMetaWearException
 
 from pymetawear import libmetawear
 from mbientlab.metawear.cbindings import SensorFusionData, SensorFusionGyroRange, SensorFusionAccRange, SensorFusionMode
+from mbientlab.metawear.cbindings import BaroBoschOversampling, BaroBoschIirFilter
 from mbientlab.metawear.cbindings import LedPattern
 
 import rospy
 from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped, TransformStamped
-from sensor_msgs.msg import BatteryState, Temperature, Illuminance, FluidPressure
+from sensor_msgs.msg import BatteryState, Temperature, Illuminance, FluidPressure, JointState
 
 from metawear_ros.msg import CalibrationState
 
@@ -40,6 +41,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.is_connected = False
 
         rotation_topic = rospy.get_param('~rotation_topic', '~rotation')
+
+        #### Experimental ####
+        joint_states_topic = rospy.get_param('~joint_states_topic', '~joint_states')
+        self.joint_prefix = rospy.get_param('~joint_prefix', 'shoulder_to_wrist')
+        ######################
+
         accel_topic = rospy.get_param('~accel_topic', '~accel')
         gyro_topic = rospy.get_param('~gyro_topic', '~gyro')
         calib_state_topic = rospy.get_param('~calib_state_topic', '~calibration_state')
@@ -60,6 +67,9 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.pub_rotation = rospy.Publisher(rotation_topic, QuaternionStamped,
             subscriber_listener = self, queue_size = 10)
         self.rotation_topic = self.track_topic(rotation_topic)
+        self.pub_joint_state = rospy.Publisher(joint_states_topic, JointState,
+            subscriber_listener = self, queue_size = 10)
+        self.joint_states_topic = self.track_topic(joint_states_topic)
 
         self.pub_accel = rospy.Publisher(accel_topic, Vector3Stamped,
             subscriber_listener = self, queue_size = 10)
@@ -176,7 +186,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
     def update_enabled_streams(self):
         self.mwc.sensorfusion.notifications(
-            quaternion_callback = self.mwc_quat_cb if self.peers_count[self.rotation_topic] else None,
+            quaternion_callback = self.mwc_quat_cb if self.peers_count[self.rotation_topic] or self.peers_count[self.joint_states_topic] else None,
             corrected_acc_callback = self.mwc_acc_cb if self.peers_count[self.accel_topic] else None,
             corrected_gyro_callback = self.mwc_gyro_cb if self.peers_count[self.gyro_topic] else None,
             calibration_state_callback = self.mwc_calib_state_cb if self.peers_count[self.calib_state_topic] else None)
@@ -224,14 +234,20 @@ class MetaWearRos(rospy.SubscribeListener, object):
         if self.mimic_myo_frame:
             # Make x-axis point towards elbow
             corr_rot =  rot * kdl.Rotation.RPY(0.0, 0.0, math.pi / 2)
-
-            # _, pitch, _ = corr_rot.GetRPY()
-            # pitch = math.degrees(pitch)
-            # # rospy.loginfo()
-            # if pitch > 0.0 and pitch < 1.0:
-            #     self.vibration_cb(Duration(rospy.Duration.from_sec(0.05)))
-
             q = corr_rot.GetQuaternion()
+        else:
+            # Make x-axis point forward, along the arm
+            corr_rot =  rot * kdl.Rotation.RPY(0.0, 0.0, -math.pi / 2)
+            q = corr_rot.GetQuaternion()
+
+        # Tait-Bryan convention
+        (yaw, pitch, roll) = corr_rot.GetEulerZYX()
+
+        j_state = JointState()
+        j_state.header.stamp = rospy.Time(data['epoch'] / 1000.0) #now
+        j_state.name = [self.joint_prefix + '_roll', self.joint_prefix + '_pitch', self.joint_prefix + '_yaw']
+        j_state.position = [roll, pitch, yaw]
+        self.pub_joint_state.publish(j_state)
 
         quat = QuaternionStamped()
         quat.header.stamp = rospy.Time(data['epoch'] / 1000.0) #now
