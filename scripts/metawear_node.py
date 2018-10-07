@@ -171,6 +171,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.mwc.ambient_light.set_settings(gain=8, integration_time=50, measurement_rate=50)
             rospy.loginfo('Setting barometer mode')
             self.mwc.barometer.set_altitude_data(status=True)
+            self.mwc.barometer.set_settings(oversampling = 'standard', iir_filter = 'avg_16')
             rospy.loginfo('Done')
 
             self.update_enabled_streams()
