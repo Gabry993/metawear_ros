@@ -174,6 +174,11 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.mwc.barometer.set_settings(oversampling = 'standard', iir_filter = 'avg_16')
             rospy.loginfo('Done')
 
+
+            self.peers_count[self.rotation_topic] += 1
+            self.peers_count[self.button_topic] += 1
+            self.peers_count[self.altitude_topic] += 1
+
             self.update_enabled_streams()
 
             self.current_color = copy.deepcopy(self.default_led_color)
