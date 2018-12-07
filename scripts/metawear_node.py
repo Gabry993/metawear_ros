@@ -10,6 +10,7 @@ from pymetawear import libmetawear
 from mbientlab.metawear.cbindings import SensorFusionData, SensorFusionGyroRange, SensorFusionAccRange, SensorFusionMode
 from mbientlab.metawear.cbindings import BaroBoschOversampling, BaroBoschIirFilter
 from mbientlab.metawear.cbindings import LedPattern
+from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int
 
 import rospy
 from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
@@ -37,7 +38,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         self.address = rospy.get_param('~address')
         self.interface = rospy.get_param('~interface', 'hci0')
-        self.mwc = MetaWearClient(self.address, self.interface, connect=False)
+        self.mwc = None
         self.is_connected = False
 
         rotation_topic = rospy.get_param('~rotation_topic', '~rotation')
@@ -116,6 +117,11 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         self.tf_br = tf2_ros.TransformBroadcaster()
 
+        # Workaround: prevent device streams to disconnect ever
+        self.peers_count[self.rotation_topic] = 1
+        self.peers_count[self.button_topic] = 1
+        self.peers_count[self.altitude_topic] = 1
+
         rospy.on_shutdown(self.disconnect)
         self.connect()
 
@@ -138,13 +144,30 @@ class MetaWearRos(rospy.SubscribeListener, object):
         if self.is_connected:
             self.update_enabled_streams()
 
+    def on_disconnect(self, status):
+        rospy.logwarn('Disconnected from {0}...'.format(self.address))
+        if self.is_connected:
+            self.is_connected = False
+            self.disconnect()
+            while not self.is_connected and not rospy.is_shutdown():
+                rospy.logwarn('Reconnecting...')
+                rospy.sleep(1.0)
+                self.connect()
+
     def connect(self):
+        self.mwc = MetaWearClient(self.address, self.interface, connect=False)
+        self.mwc.mw.on_disconnect = self.on_disconnect
+
         rospy.loginfo('Connecting to {0} ...'.format(self.address))
         self.mwc.connect()
         rospy.loginfo('Connected')
         rospy.sleep(0.1)
 
         try:
+            rospy.loginfo('Resetting data processors')
+            libmetawear.mbl_mw_metawearboard_tear_down(self.mwc.board)
+            rospy.sleep(1.0)
+
             rospy.loginfo('Setting BLE parameters...')
             self.mwc.settings.set_connection_parameters(min_conn_interval=7.5, max_conn_interval=10, latency=0, timeout=3000)
             rospy.sleep(0.2)
@@ -174,10 +197,30 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.mwc.barometer.set_settings(oversampling = 'standard', iir_filter = 'avg_16')
             rospy.loginfo('Done')
 
+            rospy.loginfo('Setting disconnect event handler')
+            dc_event = self.mwc.settings.disconnected_event()
+            blink_pattern = self.mwc.led.load_preset_pattern('blink', repeat_count=5)
+            blink_pattern.high_intensity = 31
+            blink_pattern.low_intensity = 0
+            blink_pattern.high_time_ms = 250
+            blink_pattern.pulse_duration_ms = 500
 
-            self.peers_count[self.rotation_topic] += 1
-            self.peers_count[self.button_topic] += 1
-            self.peers_count[self.altitude_topic] += 1
+            def event_rec_status(context, event, status):
+                if not status:
+                    rospy.loginfo('Disconnect event handler: OK')
+                else:
+                    rospy.logerr('Disconnect event handler: FAILED')
+
+            self._evt_rec_status_cb = FnVoid_VoidP_VoidP_Int(event_rec_status)
+
+            libmetawear.mbl_mw_event_record_commands(dc_event)
+            self.mwc.led.write_pattern(blink_pattern, 'g')
+            self.mwc.led.write_pattern(blink_pattern, 'b')
+            blink_pattern.delay_time_ms = 250
+            self.mwc.led.write_pattern(blink_pattern, 'r')
+            self.mwc.led.play()
+            self.mwc.haptic.start_motor(100, 1000)
+            libmetawear.mbl_mw_event_end_record(dc_event, None, self._evt_rec_status_cb)
 
             self.update_enabled_streams()
 
@@ -187,8 +230,10 @@ class MetaWearRos(rospy.SubscribeListener, object):
         except PyMetaWearException:
             rospy.logerr('Unable to configure the sensors. Please try to reset the board')
             # self.reset_board_cb(Bool(True))
+            return False
 
         self.is_connected = True
+        return True
 
     def update_enabled_streams(self):
         self.mwc.sensorfusion.notifications(
@@ -215,6 +260,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.mwc.barometer.notifications(self.mwc_barometer_cb if self.peers_count[self.altitude_topic] else None)
 
     def disconnect(self):
+        self.is_connected = False
         rospy.loginfo('Disconnecting from {0} ...'.format(self.address))
         self.mwc.sensorfusion.notifications()
         self.mwc.switch.notifications()
@@ -223,12 +269,15 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.mwc.ambient_light.notifications()
         self.mwc.barometer.notifications()
         self.mwc.led.stop_and_clear()
+        rospy.sleep(0.5)
 
-        rospy.loginfo('Resetting data processors')
-        libmetawear.mbl_mw_metawearboard_tear_down(self.mwc.board)
-        rospy.sleep(1.0)
+        # rospy.loginfo('Resetting data processors')
+        # libmetawear.mbl_mw_metawearboard_tear_down(self.mwc.board)
+        # rospy.sleep(1.0)
 
         self.mwc.disconnect()
+        self.mwc = None
+
         rospy.sleep(0.2)
 
     def mwc_quat_cb(self, data):
