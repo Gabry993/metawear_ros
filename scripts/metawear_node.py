@@ -214,6 +214,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self._evt_rec_status_cb = FnVoid_VoidP_VoidP_Int(event_rec_status)
 
             libmetawear.mbl_mw_event_record_commands(dc_event)
+            self.clear_sensors()
             self.mwc.led.write_pattern(blink_pattern, 'g')
             self.mwc.led.write_pattern(blink_pattern, 'b')
             blink_pattern.delay_time_ms = 250
@@ -259,9 +260,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.mwc.ambient_light.notifications(self.mwc_ambient_light_cb if self.peers_count[self.illuminance_topic] else None)
         self.mwc.barometer.notifications(self.mwc_barometer_cb if self.peers_count[self.altitude_topic] else None)
 
-    def disconnect(self):
-        self.is_connected = False
-        rospy.loginfo('Disconnecting from {0} ...'.format(self.address))
+    def clear_sensors(self):
         self.mwc.sensorfusion.notifications()
         self.mwc.switch.notifications()
         self.mwc.settings.notifications()
@@ -269,6 +268,11 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.mwc.ambient_light.notifications()
         self.mwc.barometer.notifications()
         self.mwc.led.stop_and_clear()
+
+    def disconnect(self):
+        self.is_connected = False
+        rospy.loginfo('Disconnecting from {0} ...'.format(self.address))
+        self.clear_sensors()
         rospy.sleep(0.5)
 
         # rospy.loginfo('Resetting data processors')
