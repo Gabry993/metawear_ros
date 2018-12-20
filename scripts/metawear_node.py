@@ -488,6 +488,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         if msg.data == True:
             rospy.logerr('Resetting the board. It may take >10 s to reconnect!')
             libmetawear.mbl_mw_debug_reset(self.mwc.board)
+            self.disconnect()
             rospy.loginfo('Reconnecting in 3 s...')
             rospy.sleep(3.0)
             self.connect()
