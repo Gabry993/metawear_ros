@@ -512,7 +512,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
             except rospy.ROSException, e:
                 if e.message == 'ROS time moved backwards':
-                    rospy.logwarn('Saw a negative time change, resseting.')
+                    rospy.logwarn('Saw a negative time change, reseting.')
 
 if __name__ == '__main__':
     rospy.init_node('metawear_ros', anonymous = False)
