@@ -84,6 +84,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.pub_calib_state = rospy.Publisher(calib_state_topic, CalibrationState,
             subscriber_listener = self, queue_size = 10)
         self.calib_state_topic = self.track_topic(calib_state_topic)
+        self.calib_state = None
 
         self.pub_button = rospy.Publisher(button_topic, Bool,
             subscriber_listener = self, queue_size = 10, latch=(not self.republish_button))
@@ -124,6 +125,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.peers_count[self.rotation_topic] = 1
         self.peers_count[self.button_topic] = 1
         self.peers_count[self.altitude_topic] = 1
+        self.peers_count[self.calib_state_topic] = 1
 
         rospy.on_shutdown(self.disconnect)
         self.connect()
@@ -229,7 +231,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.update_enabled_streams()
 
             self.current_color = copy.deepcopy(self.default_led_color)
-            self.led_cb(self.default_led_color)
+            self.mwc.led.stop_and_clear()
+            # self.led_cb(self.default_led_color)
 
         except PyMetaWearException:
             rospy.logerr('Unable to configure the sensors. Please try to reset the board')
@@ -381,6 +384,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
         calib.gyroscope = data['value'].gyroscope
         calib.magnetometer = data['value'].magnetometer
 
+        self.calib_state = calib
+
         self.pub_calib_state.publish(calib)
 
         # rospy.loginfo(data)
@@ -507,9 +512,58 @@ class MetaWearRos(rospy.SubscribeListener, object):
         else:
             rospy.logwarn('Attempt to reset the board with \'data: false\'')
 
+    def blink_led_2Hz(self, color_msg, delay = 0):
+        if not self.is_connected:
+            return None
+
+        brightness = 31.0 * color_msg.a
+
+        pattern = self.mwc.led.load_preset_pattern('blink', repeat_count=2)
+        pattern.low_intensity = 0
+        pattern.high_time_ms = 250
+        pattern.pulse_duration_ms = 500
+        pattern.delay_time_ms = int(delay)
+
+        red = copy.deepcopy(pattern)
+        green = copy.deepcopy(pattern)
+        blue = copy.deepcopy(pattern)
+        red.high_intensity = int(color_msg.r * brightness)
+        green.high_intensity = int(color_msg.g * brightness)
+        blue.high_intensity = int(color_msg.b * brightness)
+
+        self.mwc.led.write_pattern(red, 'r')
+        self.mwc.led.write_pattern(green, 'g')
+        self.mwc.led.write_pattern(blue, 'b')
+
+        self.mwc.led.play()
+
+        return pattern.repeat_count * (pattern.pulse_duration_ms + pattern.delay_time_ms)
+
     def poll_calibration_state(self):
-        if self.peers_count[self.calib_state_topic]:
+        if self.is_connected:
+
+            blink_yellow = ColorRGBA(r=0.8, g=1.0, b=0.0, a=1.0)
+            blink_red    = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+
+            t_until = rospy.Time(0.0)
+
+            # if self.peers_count[self.calib_state_topic]:
             self.mwc.sensorfusion.read_calibration_state()
+
+            if self.calib_state:
+                cumulative_calib = self.calib_state.accelerometer + self.calib_state.gyroscope
+
+                if self.calib_state.accelerometer < 3 and self.calib_state.gyroscope < 3:
+                    if rospy.Time.now() > t_until:
+                        t = self.blink_led_2Hz(blink_red)
+                        t_until = rospy.Time.now() + rospy.Duration(t / 1000.0)
+
+                elif cumulative_calib < 6:
+                    if rospy.Time.now() > t_until:
+                        t = self.blink_led_2Hz(blink_yellow)
+                        t_until = rospy.Time.now() + rospy.Duration(t / 1000.0)
+                else:
+                    self.led_cb(self.default_led_color)
 
     def run(self):
         loop_rate = rospy.Rate(self.publish_rate)
