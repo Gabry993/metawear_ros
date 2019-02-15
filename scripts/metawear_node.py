@@ -17,7 +17,7 @@ from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped, TransformStamped
 from sensor_msgs.msg import BatteryState, Temperature, Illuminance, FluidPressure, JointState
 
-from metawear_ros.msg import CalibrationState
+from metawear_ros.msg import CalibrationState, Vibration, VibrationPattern
 
 import tf2_ros
 import tf2_geometry_msgs
@@ -61,6 +61,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.button_val = False
 
         vibration_topic = rospy.get_param('~vibration_topic', '~vibration2')
+        vibration_pattern_topic = rospy.get_param('~vibration_pattern_topic', '~vibration_pattern')
         led_topic = rospy.get_param('~led_topic', '~led')
         led_color = rospy.get_param('~led_color', {'r': 0.0, 'g': 1.0, 'b': 1.0, 'a': 1.0})
         self.default_led_color = ColorRGBA(**led_color)
@@ -111,6 +112,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.altitude_topic = self.track_topic(altitude_topic)
 
         self.sub_vibration = rospy.Subscriber(vibration_topic, Duration, self.vibration_cb)
+        self.sub_vibration_pattern = rospy.Subscriber(vibration_pattern_topic, VibrationPattern, self.vibration_pattern_cb, queue_size = 1)
+
         self.sub_led = rospy.Subscriber(led_topic, ColorRGBA, self.led_cb)
 
         self.sub_reset = rospy.Subscriber('~reset_board', Bool, self.reset_board_cb)
@@ -455,6 +458,15 @@ class MetaWearRos(rospy.SubscribeListener, object):
     def vibration_cb(self, msg):
         d = rospy.Duration(msg.data.secs, msg.data.nsecs)
         self.mwc.haptic.start_motor(100, int(d.to_sec() * 1000))
+
+    def vibration_pattern_cb(self, msg):
+        msg.pattern.reverse()
+
+        while msg.pattern and not rospy.is_shutdown():
+            cur = msg.pattern.pop()
+            d = rospy.Duration(cur.duration.secs, cur.duration.nsecs)
+            self.mwc.haptic.start_motor(cur.power, int(d.to_sec() * 1000))
+            rospy.sleep(d.to_sec())
 
     def write_led(self, msg):
         # self.mwc.led.stop_and_clear()

@@ -52,6 +52,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   CalibrationState.msg
+  Vibration.msg
+  VibrationPattern.msg
 )
 
 ## Generate services in the 'srv' folder
