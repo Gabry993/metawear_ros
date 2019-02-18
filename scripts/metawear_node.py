@@ -14,6 +14,7 @@ from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int
 
 import rospy
 from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
+from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped, TransformStamped
 from sensor_msgs.msg import BatteryState, Temperature, Illuminance, FluidPressure, JointState
 
@@ -46,6 +47,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
         #### Experimental ####
         joint_states_topic = rospy.get_param('~joint_states_topic', '~joint_states')
         self.joint_prefix = rospy.get_param('~joint_prefix', 'shoulder_to_wrist')
+        ######################
+
+        #### Experimental. Feb 17, 2019 ####
+        # Allows to adjust zero for yaw angle
+        self.yaw_origin = 0.0
+        self.srv_set_yaw_origin = rospy.Service('~set_yaw_origin', Empty, self.set_yaw_origin)
         ######################
 
         accel_topic = rospy.get_param('~accel_topic', '~accel')
@@ -290,6 +297,15 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         rospy.sleep(0.2)
 
+    def set_yaw_origin(self, req):
+        if not self.is_connected:
+            raise rospy.ServiceException('Not connected')
+
+        self.yaw_origin = self.orig_yaw
+        rospy.loginfo('Successfully set yaw to zero')
+
+        return EmptyResponse()
+
     def mwc_quat_cb(self, data):
         now = rospy.Time.now()
 
@@ -298,15 +314,17 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         if self.mimic_myo_frame:
             # Make x-axis point towards elbow
-            corr_rot =  rot * kdl.Rotation.RPY(0.0, 0.0, math.pi / 2)
-            q = corr_rot.GetQuaternion()
+            orig_rot =  rot * kdl.Rotation.RPY(0.0, 0.0, math.pi / 2)
         else:
             # Make x-axis point forward, along the arm
-            corr_rot =  rot * kdl.Rotation.RPY(0.0, 0.0, -math.pi / 2)
-            q = corr_rot.GetQuaternion()
+            orig_rot =  rot * kdl.Rotation.RPY(0.0, 0.0, -math.pi / 2)
+
+        corr_rot =  kdl.Rotation.RPY(0.0, 0.0, -self.yaw_origin) * orig_rot
 
         # Tait-Bryan convention
+        (self.orig_yaw, _, _) = orig_rot.GetEulerZYX()
         (yaw, pitch, roll) = corr_rot.GetEulerZYX()
+        q = corr_rot.GetQuaternion()
 
         j_state = JointState()
         j_state.header.stamp = rospy.Time(data['epoch'] / 1000.0) #now
