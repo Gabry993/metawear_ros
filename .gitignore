@@ -1,4 +1,5 @@
 .metawear/
 
+config/mwear.yaml
 *.swp
 *.pyc
