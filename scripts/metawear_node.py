@@ -203,11 +203,11 @@ class MetaWearRos(rospy.SubscribeListener, object):
                 self.connect()
 
     def connect(self):
+        rospy.loginfo('Connecting to {0} ...'.format(self.address))
         self.mwc = MetaWearClient(self.address, self.interface, connect=False)
         self.mwc.mw.on_disconnect = self.on_disconnect
-
-        rospy.loginfo('Connecting to {0} ...'.format(self.address))
         self.mwc.connect()
+
         rospy.loginfo('Connected')
         self.real_mac_address = self.get_real_mac_address()
         rospy.loginfo('Real MAC address: {}'.format(self.real_mac_address))
