@@ -2,6 +2,8 @@
 
 import math
 import copy
+import ctypes
+from threading import Event
 
 from pymetawear.client import MetaWearClient
 from pymetawear.exceptions import PyMetaWearException
@@ -10,7 +12,7 @@ from pymetawear import libmetawear
 from mbientlab.metawear.cbindings import SensorFusionData, SensorFusionGyroRange, SensorFusionAccRange, SensorFusionMode
 from mbientlab.metawear.cbindings import BaroBoschOversampling, BaroBoschIirFilter
 from mbientlab.metawear.cbindings import LedPattern
-from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int
+from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int, FnVoid_VoidP_VoidP_CalibrationDataP, FnVoid_VoidP_DataP
 
 import rospy
 from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
@@ -37,10 +39,21 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.frame_id = rospy.get_param('~frame_id', rospy.get_name().split('/')[-1])
         self.mimic_myo_frame = rospy.get_param('~mimic_myo_frame', True)
 
-        self.address = rospy.get_param('~address')
+        self.address = rospy.get_param('~address').lower()
         self.interface = rospy.get_param('~interface', 'hci0')
         self.mwc = None
         self.is_connected = False
+
+        self.config = rospy.get_param('~config', {})
+        self.config = {k.lower():v for k,v in self.config.items()}
+        self.calib_data = None
+
+        if self.address in self.config:
+            dev_conf = self.config[self.address]
+            if 'conn_address' in dev_conf:
+                conn_address = dev_conf['conn_address']
+                rospy.logwarn('Substituting device address from the config')
+                self.address = conn_address
 
         rotation_topic = rospy.get_param('~rotation_topic', '~rotation')
 
@@ -173,6 +186,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         rospy.loginfo('Connecting to {0} ...'.format(self.address))
         self.mwc.connect()
         rospy.loginfo('Connected')
+        rospy.loginfo('Real MAC address: {}'.format(self.get_real_mac_address()))
         rospy.sleep(0.1)
 
         try:
@@ -248,6 +262,27 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         self.is_connected = True
         return True
+
+    def get_real_mac_address(self):
+        e = Event()
+
+        mac_data_signal = libmetawear.mbl_mw_settings_get_mac_data_signal(self.mwc.board)
+
+        ret_value = {'value': None} # mutable
+
+        def mac_data_cb(context, pdata):
+            CHARP = ctypes.POINTER(ctypes.c_char_p)
+            ret_value['value'] = ctypes.cast(pdata.contents.value, ctypes.c_char_p).value
+            e.set()
+
+        _mac_data_cb = FnVoid_VoidP_DataP(mac_data_cb)
+        libmetawear.mbl_mw_datasignal_subscribe(mac_data_signal, None, _mac_data_cb)
+        libmetawear.mbl_mw_datasignal_read(mac_data_signal)
+        e.wait()
+        libmetawear.mbl_mw_datasignal_unsubscribe(mac_data_signal)
+
+        return ret_value['value']
+
 
     def update_enabled_streams(self):
         self.mwc.sensorfusion.notifications(
