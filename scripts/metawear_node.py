@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import math
 import copy
 import ctypes
@@ -15,6 +16,8 @@ from mbientlab.metawear.cbindings import LedPattern
 from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int, FnVoid_VoidP_VoidP_CalibrationDataP, FnVoid_VoidP_DataP
 
 import rospy
+import rosparam
+import rospkg
 from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
 from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped, TransformStamped
@@ -31,6 +34,13 @@ class MetaWearRos(rospy.SubscribeListener, object):
     """docstring for MetaWearRos"""
 
     def __init__(self):
+        # Get package name
+        self.pkg_name = rospkg.get_package_name(os.path.realpath(__file__))
+        rospack = rospkg.RosPack()
+        self.pkg_path = rospack.get_path(self.pkg_name)
+        self.config_fname = self.pkg_path + '/config/mwear.yaml'
+        self.config_param = rospy.get_name() + '/config'
+
         # topic_name -> number of connected peers
         self.peers_count = {}
 
@@ -43,6 +53,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.interface = rospy.get_param('~interface', 'hci0')
         self.mwc = None
         self.is_connected = False
+
+        try:
+            config = rosparam.load_file(self.config_fname)
+            rosparam.upload_params(self.config_param, config[0][0])
+        except rosparam.RosParamException, e:
+            pass
 
         self.config = rospy.get_param('~config', {})
         self.config = {k.lower():v for k,v in self.config.items()}
@@ -193,7 +209,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
         rospy.loginfo('Connecting to {0} ...'.format(self.address))
         self.mwc.connect()
         rospy.loginfo('Connected')
-        rospy.loginfo('Real MAC address: {}'.format(self.get_real_mac_address()))
+        self.real_mac_address = self.get_real_mac_address()
+        rospy.loginfo('Real MAC address: {}'.format(self.real_mac_address))
         rospy.sleep(0.1)
 
         try:
@@ -441,7 +458,14 @@ class MetaWearRos(rospy.SubscribeListener, object):
     def update_calibration_data(self):
         e = Event()
         def read_calib_data_cb(context, board, pdata):
-            rospy.loginfo('Calibration data: {}'.format(pdata.contents))
+            # rospy.loginfo('Calibration data: {}'.format(pdata.contents))
+
+            calib_data_param = self.config_param + '/' + self.real_mac_address + '/calib_data'
+            rosparam.set_param(calib_data_param, str(pdata.contents))
+
+            rospy.loginfo('Writing calibration data to: {}'.format(self.config_fname))
+            rosparam.dump_params(self.config_fname, self.config_param)
+
             libmetawear.mbl_mw_sensor_fusion_write_calibration_data(board, pdata)
             libmetawear.mbl_mw_memory_free(pdata)
             e.set()
