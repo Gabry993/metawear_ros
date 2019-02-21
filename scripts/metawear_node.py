@@ -55,6 +55,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
                 rospy.logwarn('Substituting device address from the config')
                 self.address = conn_address
 
+            if 'calib_data' in dev_conf:
+                if set({'acc', 'gyro', 'mag'}) <= set(dev_conf['calib_data'].keys()):
+                    self.calib_data = dev_conf['calib_data']
+                else:
+                    rospy.logerr('calib_data is missing one of the fields: acc, gyro, or mag')
+
         rotation_topic = rospy.get_param('~rotation_topic', '~rotation')
 
         #### Experimental ####
@@ -105,6 +111,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
             subscriber_listener = self, queue_size = 10)
         self.calib_state_topic = self.track_topic(calib_state_topic)
         self.calib_state = None
+        self.calibrated = False
 
         self.pub_button = rospy.Publisher(button_topic, Bool,
             subscriber_listener = self, queue_size = 10, latch=(not self.republish_button))
@@ -203,7 +210,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
             rospy.loginfo('Setting IMU sensor fusion mode')
             self.mwc.sensorfusion.set_mode(SensorFusionMode.SLEEP)
             self.mwc.sensorfusion.set_mode(SensorFusionMode.IMU_PLUS)
-            #self.mwc.sensorfusion.set_mode(SensorFusionMode.NDOF)
+            # self.mwc.sensorfusion.set_mode(SensorFusionMode.NDOF)
             rospy.sleep(0.5)
 
             rospy.loginfo('Setting IMU sensors range')
@@ -248,6 +255,9 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.mwc.led.play()
             self.mwc.haptic.start_motor(100, 1000)
             libmetawear.mbl_mw_event_end_record(dc_event, None, self._evt_rec_status_cb)
+
+            if self.calib_data:
+                self.write_calibration_data(self.calib_data)
 
             self.update_enabled_streams()
 
@@ -428,6 +438,37 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.pub_gyro.publish(gyro)
         # rospy.loginfo_throttle(1.0, 'gyro: {}'.format(data))
 
+    def update_calibration_data(self):
+        e = Event()
+        def read_calib_data_cb(context, board, pdata):
+            rospy.loginfo('Calibration data: {}'.format(pdata.contents))
+            libmetawear.mbl_mw_sensor_fusion_write_calibration_data(board, pdata)
+            libmetawear.mbl_mw_memory_free(pdata)
+            e.set()
+
+        self._read_calib_data_cb = FnVoid_VoidP_VoidP_CalibrationDataP(read_calib_data_cb)
+        libmetawear.mbl_mw_sensor_fusion_read_calibration_data(self.mwc.board, None, self._read_calib_data_cb)
+        e.wait()
+
+    def write_calibration_data(self, calib_data):
+        e = Event()
+        # Fake read to just create the underlaying C-struct
+        def read_calib_data_cb(context, board, pdata):
+            pdata.contents.acc = (ctypes.c_ubyte * 10).from_buffer_copy(bytearray(calib_data['acc']))
+            pdata.contents.gyro = (ctypes.c_ubyte * 10).from_buffer_copy(bytearray(calib_data['gyro']))
+            pdata.contents.mag = (ctypes.c_ubyte * 10).from_buffer_copy(bytearray(calib_data['mag']))
+
+            libmetawear.mbl_mw_sensor_fusion_write_calibration_data(board, pdata)
+            libmetawear.mbl_mw_memory_free(pdata)
+            rospy.loginfo('Calibration data successfully updated')
+            self.calibrated = True
+            e.set()
+
+        rospy.loginfo('Updating calibration data from cache...')
+        _read_calib_data_cb = FnVoid_VoidP_VoidP_CalibrationDataP(read_calib_data_cb)
+        libmetawear.mbl_mw_sensor_fusion_read_calibration_data(self.mwc.board, None, _read_calib_data_cb)
+        e.wait()
+
     def mwc_calib_state_cb(self, data):
         now = rospy.Time.now()
 
@@ -437,8 +478,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
         calib.gyroscope = data['value'].gyroscope
         calib.magnetometer = data['value'].magnetometer
 
-        self.calib_state = calib
+        if not self.calibrated:
+            if (calib.accelerometer == 3 and calib.gyroscope == 3):
+                self.update_calibration_data()
+                self.calibrated = True
 
+        self.calib_state = calib
         self.pub_calib_state.publish(calib)
 
         # rospy.loginfo(data)
@@ -604,9 +649,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.mwc.sensorfusion.read_calibration_state()
 
             if self.calib_state:
-                cumulative_calib = self.calib_state.accelerometer + self.calib_state.gyroscope
+                cumulative_calib = self.calib_state.accelerometer + self.calib_state.gyroscope # + self.calib_state.magnetometer
 
-                if self.calib_state.accelerometer < 3 and self.calib_state.gyroscope < 3:
+                if (self.calib_state.accelerometer < 3 and \
+                    self.calib_state.gyroscope < 3):
+                    # self.calib_state.magnetometer < 3):
+
                     if rospy.Time.now() > t_until:
                         t = self.blink_led_2Hz(blink_red)
                         t_until = rospy.Time.now() + rospy.Duration(t / 1000.0)
