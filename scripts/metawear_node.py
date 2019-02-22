@@ -305,7 +305,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
         _mac_data_cb = FnVoid_VoidP_DataP(mac_data_cb)
         libmetawear.mbl_mw_datasignal_subscribe(mac_data_signal, None, _mac_data_cb)
         libmetawear.mbl_mw_datasignal_read(mac_data_signal)
-        e.wait()
+
+        while not rospy.is_shutdown():
+            e.wait(0.1)
+            if e.is_set():
+                break
+
         libmetawear.mbl_mw_datasignal_unsubscribe(mac_data_signal)
 
         return ret_value['value']
@@ -472,7 +477,11 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         self._read_calib_data_cb = FnVoid_VoidP_VoidP_CalibrationDataP(read_calib_data_cb)
         libmetawear.mbl_mw_sensor_fusion_read_calibration_data(self.mwc.board, None, self._read_calib_data_cb)
-        e.wait()
+
+        while not rospy.is_shutdown():
+            e.wait(0.1)
+            if e.is_set():
+                break
 
     def write_calibration_data(self, calib_data):
         e = Event()
@@ -491,7 +500,11 @@ class MetaWearRos(rospy.SubscribeListener, object):
         rospy.loginfo('Updating calibration data from cache...')
         _read_calib_data_cb = FnVoid_VoidP_VoidP_CalibrationDataP(read_calib_data_cb)
         libmetawear.mbl_mw_sensor_fusion_read_calibration_data(self.mwc.board, None, _read_calib_data_cb)
-        e.wait()
+
+        while not rospy.is_shutdown():
+            e.wait(0.1)
+            if e.is_set():
+                break
 
     def mwc_calib_state_cb(self, data):
         now = rospy.Time.now()
