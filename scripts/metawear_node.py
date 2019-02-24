@@ -13,12 +13,12 @@ from pymetawear import libmetawear
 from mbientlab.metawear.cbindings import SensorFusionData, SensorFusionGyroRange, SensorFusionAccRange, SensorFusionMode
 from mbientlab.metawear.cbindings import BaroBoschOversampling, BaroBoschIirFilter
 from mbientlab.metawear.cbindings import LedPattern
-from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int, FnVoid_VoidP_VoidP_CalibrationDataP, FnVoid_VoidP_DataP
+from mbientlab.metawear.cbindings import FnVoid_VoidP_VoidP_Int, FnVoid_VoidP_VoidP_CalibrationDataP, FnVoid_VoidP_DataP, FnVoid_VoidP_VoidP
 
 import rospy
 import rosparam
 import rospkg
-from std_msgs.msg import Bool, Int8, Float32, Duration, ColorRGBA
+from std_msgs.msg import Bool, UInt8, Int8, Float32, Duration, ColorRGBA
 from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped, TransformStamped
 from sensor_msgs.msg import BatteryState, Temperature, Illuminance, FluidPressure, JointState
@@ -159,7 +159,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.sub_vibration_pattern = rospy.Subscriber(vibration_pattern_topic, VibrationPattern, self.vibration_pattern_cb, queue_size = 1)
 
         self.sub_led = rospy.Subscriber(led_topic, ColorRGBA, self.led_cb)
-
+        self.sub_exec_timer = rospy.Subscriber('~exec_timer', UInt8, self.exec_timer_cb)
         self.sub_reset = rospy.Subscriber('~reset_board', Bool, self.reset_board_cb)
 
         self.tf_br = tf2_ros.TransformBroadcaster()
@@ -273,6 +273,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
             self.mwc.haptic.start_motor(100, 1000)
             libmetawear.mbl_mw_event_end_record(dc_event, None, self._evt_rec_status_cb)
 
+            self.setup_vibration_timer()
+
             if self.calib_data:
                 self.write_calibration_data(self.calib_data)
 
@@ -289,6 +291,42 @@ class MetaWearRos(rospy.SubscribeListener, object):
 
         self.is_connected = True
         return True
+
+    def setup_vibration_timer(self):
+        e = Event()
+
+        def timer_created_cb(context, timer):
+            e2 = Event()
+            def events_recorded_cb(context, event, status):
+                rospy.loginfo('Timer event recorded')
+                e2.set()
+            _events_recorded_cb = FnVoid_VoidP_VoidP_Int(events_recorded_cb)
+
+            if timer:
+                rospy.loginfo('Timer {} created'.format(libmetawear.mbl_mw_timer_get_id(timer)))
+
+                libmetawear.mbl_mw_event_record_commands(timer)
+                self.mwc.haptic.start_motor(100, 150)
+                libmetawear.mbl_mw_event_end_record(timer, None, _events_recorded_cb)
+
+                # libmetawear.mbl_mw_timer_start(timer)
+
+                while not rospy.is_shutdown():
+                    e2.wait(0.1)
+                    if e2.is_set():
+                        break
+            else:
+                rospy.logerr('Failed to create timer')
+
+            e.set()
+        _timer_created_cb = FnVoid_VoidP_VoidP(timer_created_cb)
+
+        libmetawear.mbl_mw_timer_create(self.mwc.board, 300, 3, 0, None, _timer_created_cb)
+
+        while not rospy.is_shutdown():
+            e.wait(0.1)
+            if e.is_set():
+                break
 
     def get_real_mac_address(self):
         e = Event()
@@ -314,7 +352,6 @@ class MetaWearRos(rospy.SubscribeListener, object):
         libmetawear.mbl_mw_datasignal_unsubscribe(mac_data_signal)
 
         return ret_value['value']
-
 
     def update_enabled_streams(self):
         self.mwc.sensorfusion.notifications(
@@ -348,6 +385,12 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.mwc.ambient_light.notifications()
         self.mwc.barometer.notifications()
         self.mwc.led.stop_and_clear()
+
+        for i in range(8):
+            timer = libmetawear.mbl_mw_timer_lookup_id(self.mwc.board, i)
+            if timer:
+                rospy.logwarn('Deleting timer {}'.format(i))
+                libmetawear.mbl_mw_timer_remove(timer)
 
     def disconnect(self):
         self.is_connected = False
@@ -635,6 +678,15 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.current_color = copy.deepcopy(msg)
 
         self.write_led(msg)
+
+    def exec_timer_cb(self, msg):
+        if self.is_connected:
+            rospy.loginfo('Executing timer {}'.format(msg.data))
+            timer = libmetawear.mbl_mw_timer_lookup_id(self.mwc.board, msg.data)
+            if timer:
+                libmetawear.mbl_mw_timer_start(timer)
+            else:
+                rospy.logerr('Could not find timer with ID {}'.format(msg.data))
 
     def reset_board_cb(self, msg):
         if msg.data == True:
