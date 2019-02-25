@@ -99,6 +99,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
         illuminance_topic = rospy.get_param('~illuminance_topic', '~illuminance')
         # air_pressure_topic = rospy.get_param('~air_pressure_topic', '~air_pressure')
         altitude_topic = rospy.get_param('~altitude_topic', '~altitude')
+        self.give_button_feedback = rospy.get_param('~give_button_feedback', False)
         self.republish_button = rospy.get_param('~republish_button', True)
         self.button_val = False
 
@@ -169,6 +170,8 @@ class MetaWearRos(rospy.SubscribeListener, object):
         self.peers_count[self.button_topic] = 1
         self.peers_count[self.altitude_topic] = 1
         self.peers_count[self.calib_state_topic] = 1
+
+        self.peers_count[self.button_topic] = int(self.give_button_feedback)
 
         rospy.on_shutdown(self.disconnect)
         self.connect()
@@ -574,6 +577,10 @@ class MetaWearRos(rospy.SubscribeListener, object):
         # rospy.loginfo(data)
         stamp = rospy.Time(data['epoch'] / 1000.0)
         self.button_val = Bool(data['value'])
+
+        if self.button_val.data and self.give_button_feedback:
+            self.mwc.haptic.start_motor(100, 80)
+
         if not self.republish_button:
             self.pub_button.publish(self.button_val)
 
