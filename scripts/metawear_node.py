@@ -324,7 +324,7 @@ class MetaWearRos(rospy.SubscribeListener, object):
             e.set()
         _timer_created_cb = FnVoid_VoidP_VoidP(timer_created_cb)
 
-        libmetawear.mbl_mw_timer_create(self.mwc.board, 300, 3, 0, None, _timer_created_cb)
+        libmetawear.mbl_mw_timer_create(self.mwc.board, 300, 1, 0, None, _timer_created_cb)
 
         while not rospy.is_shutdown():
             e.wait(0.1)
