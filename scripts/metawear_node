@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+
+# type: ignore
+import sys
+import rclpy
+from metawear_ros.metawear_ros import MetaWearRos
+
+if __name__ == '__main__':
+    rclpy.init(args=sys.argv)
+    mw = MetaWearRos()
+    mw.run()
