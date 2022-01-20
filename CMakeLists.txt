@@ -24,7 +24,7 @@ set(msg_files
   "msg/VibrationPattern.msg"
 )
 
-rosidl_generate_interfaces(${PROJECT_NAME}
+rosidl_generate_interfaces(${PROJECT_NAME}_msgs
   ${msg_files}
   DEPENDENCIES builtin_interfaces std_msgs
 )
@@ -32,7 +32,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 ament_export_dependencies(rosidl_default_runtime)
 
 # Install Python modules
-ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR ${PROJECT_NAME})
+# TODO(Jerome): installation broken beacuse of name conflict with the package above
+ament_python_install_package(${PROJECT_NAME}_lib PACKAGE_DIR ${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
