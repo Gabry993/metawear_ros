@@ -33,7 +33,7 @@ ament_export_dependencies(rosidl_default_runtime)
 
 # Install Python modules
 # TODO(Jerome): installation broken beacuse of name conflict with the package above
-ament_python_install_package(${PROJECT_NAME}_lib PACKAGE_DIR ${PROJECT_NAME})
+ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR ${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
