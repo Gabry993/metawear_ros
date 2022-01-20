@@ -1,0 +1,13 @@
+version: '3'
+services:
+  metawear_ros:
+    image: jeguzzi/metawear_ros:foxy
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    network_mode: host
+    privileged: true
+    command: ros2 launch metawear_ros _main.launch
+    volumes:
+      - ./logs:/root/.ros/log:rw
+      - ./_main.launch:/ros_ws/install/share/metawear_ros/launch/_main.launch:ro
