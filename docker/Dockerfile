@@ -21,7 +21,7 @@ SHELL ["/bin/bash", "-c"]
 
 RUN python3 -m pip install "warble==1.2.6" "metawear==0.7.0" "pymetawear==0.12.0" numpy-quaternion
 
-COPY ./metawear_ros/ /ros_ws/src/metawear_ros
+COPY ./ /ros_ws/src/metawear_ros
 
 # RUN mkdir -p /ros_ws/src/ && cd /ros_ws/src/ && git clone -b ros2 https://github.com/Gabry993/metawear_ros.git
 
