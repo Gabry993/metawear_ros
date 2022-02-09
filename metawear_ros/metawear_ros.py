@@ -181,6 +181,12 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
             history=rclpy.qos.QoSHistoryPolicy.KEEP_LAST,
             durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
         )
+        default_qos = rclpy.qos.QoSProfile(
+            depth=10,
+            history=rclpy.qos.QoSHistoryPolicy.KEEP_LAST,
+            durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE
+        )
         self.pub_rotation = self.create_publisher(
             geometry_msgs.msg.QuaternionStamped, rotation_topic, stream_qos
         )
@@ -210,7 +216,7 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         self.calib_data: Dict[str, List[int]] = {}
         # DONE(Jerome): add appropriate qos for queue_size=10 and latch=(not self.republish_button)
         self.pub_button = self.create_publisher(
-            std_msgs.msg.Bool, button_topic, stream_qos if self.republish_button else rclpy.qos.QoSProfile()
+            std_msgs.msg.Bool, button_topic, stream_qos if self.republish_button else default_qos
         )
         self.button_topic = self.track_topic(button_topic)
         # DONE(Jerome): add appropriate qos for queue_size=10 and latch=True
