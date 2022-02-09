@@ -210,7 +210,7 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         self.calib_data: Dict[str, List[int]] = {}
         # DONE(Jerome): add appropriate qos for queue_size=10 and latch=(not self.republish_button)
         self.pub_button = self.create_publisher(
-            std_msgs.msg.Bool, button_topic, stream_qos if self.republish_button else state_qos
+            std_msgs.msg.Bool, button_topic, stream_qos if self.republish_button else rclpy.qos.QoSProfile()
         )
         self.button_topic = self.track_topic(button_topic)
         # DONE(Jerome): add appropriate qos for queue_size=10 and latch=True
