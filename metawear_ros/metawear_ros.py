@@ -175,6 +175,7 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
             depth=10,
             history=rclpy.qos.QoSHistoryPolicy.KEEP_LAST,
             durability=rclpy.qos.QoSDurabilityPolicy.VOLATILE,
+            reliability=rclpy.qos.QoSReliabilityPolicy.BEST_EFFORT
         )
         state_qos = rclpy.qos.QoSProfile(
             depth=1,
