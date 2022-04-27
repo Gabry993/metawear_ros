@@ -3,3 +3,5 @@
 config/mwear.yaml
 *.swp
 *.pyc
+
+*.log
