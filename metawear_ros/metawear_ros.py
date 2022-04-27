@@ -132,7 +132,7 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         accel_topic = self.declare_parameter("accel_topic", "accel").value
         gyro_topic = self.declare_parameter("gyro_topic", "gyro").value
         calib_state_topic = self.declare_parameter(
-            "calib_state_topic", "~/calibration_state"
+            "calib_state_topic", "calibration_state"
         ).value
         button_topic = self.declare_parameter("button_topic", "button").value
         battery_topic = self.declare_parameter("battery_topic", "battery_state").value
@@ -262,10 +262,10 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
             std_msgs.msg.ColorRGBA, led_topic, self.led_cb, cmd_qos
         )
         self.sub_exec_timer = self.create_subscription(
-            std_msgs.msg.UInt8, "~/exec_timer", self.exec_timer_cb, cmd_qos
+            std_msgs.msg.UInt8, "exec_timer", self.exec_timer_cb, cmd_qos
         )
         self.sub_reset = self.create_subscription(
-            std_msgs.msg.Bool, "~/reset_board", self.reset_board_cb, cmd_qos
+            std_msgs.msg.Bool, "reset_board", self.reset_board_cb, cmd_qos
         )
 
         # DONE(Jerome): Do we really need this partial TF trasform? -> No
