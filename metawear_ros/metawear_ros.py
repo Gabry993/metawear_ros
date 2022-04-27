@@ -111,7 +111,7 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         self.should_save_config: bool = self.declare_parameter("save_config", True).value
         self.load_config()
 
-        rotation_topic = self.declare_parameter("rotation_topic", "~/rotation").value
+        rotation_topic = self.declare_parameter("rotation_topic", "rotation").value
 
         # ### Experimental ####
         # joint_states_topic = self.declare_parameter('joint_states_topic', 'joint_states')
@@ -123,27 +123,27 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         # DONE(Jerome): Is this uses/usefull? -> maybe
         self.yaw_origin = 0.0
         self.srv_set_yaw_origin = self.create_service(
-            std_srvs.srv.Empty, "~/set_yaw_origin", self.set_yaw_origin
+            std_srvs.srv.Empty, "set_yaw_origin", self.set_yaw_origin
         )
         ######################
 
         # DONE(Jerome): do I need the tilde? -> yes but it should be ~/
 
-        accel_topic = self.declare_parameter("accel_topic", "~/accel").value
-        gyro_topic = self.declare_parameter("gyro_topic", "~/gyro").value
+        accel_topic = self.declare_parameter("accel_topic", "accel").value
+        gyro_topic = self.declare_parameter("gyro_topic", "gyro").value
         calib_state_topic = self.declare_parameter(
             "calib_state_topic", "~/calibration_state"
         ).value
-        button_topic = self.declare_parameter("button_topic", "~/button").value
-        battery_topic = self.declare_parameter("battery_topic", "~/battery_state").value
+        button_topic = self.declare_parameter("button_topic", "button").value
+        battery_topic = self.declare_parameter("battery_topic", "battery_state").value
         temperature_topic = self.declare_parameter(
-            "temperature_topic", "~/temperature"
+            "temperature_topic", "temperature"
         ).value
         illuminance_topic = self.declare_parameter(
-            "illuminance_topic", "~/illuminance"
+            "illuminance_topic", "illuminance"
         ).value
         # air_pressure_topic = self.declare_parameter('air_pressure_topic', 'air_pressure')
-        altitude_topic = self.declare_parameter("altitude_topic", "~/altitude").value
+        altitude_topic = self.declare_parameter("altitude_topic", "altitude").value
         self.give_button_feedback = self.declare_parameter(
             "give_button_feedback", False
         ).value
@@ -151,12 +151,12 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         self.button_val = std_msgs.msg.Bool(data=False)
 
         vibration_topic = self.declare_parameter(
-            "vibration_topic", "~/vibration2"
+            "vibration_topic", "vibration2"
         ).value
         vibration_pattern_topic = self.declare_parameter(
-            "vibration_pattern_topic", "~/vibration_pattern"
+            "vibration_pattern_topic", "vibration_pattern"
         ).value
-        led_topic = self.declare_parameter("led_topic", "~/led").value
+        led_topic = self.declare_parameter("led_topic", "led").value
         # DONE(Jerome): can I have map as param value?
         # -> I can but I have to define them one by one
         led_color = {}
