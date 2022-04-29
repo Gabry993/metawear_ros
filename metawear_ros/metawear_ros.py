@@ -171,11 +171,16 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
         # should I regularly check the number of subscribers?
         # -> added update_subscribers_count at 1 Hz
         # DONE(Jerome): add appropriate qos for queue_size=10
-        stream_qos = rclpy.qos.QoSProfile(
+        rot_qos = rclpy.qos.QoSProfile(
             depth=10,
             history=rclpy.qos.QoSHistoryPolicy.KEEP_LAST,
             durability=rclpy.qos.QoSDurabilityPolicy.VOLATILE,
             reliability=rclpy.qos.QoSReliabilityPolicy.BEST_EFFORT
+        )
+        stream_qos = rclpy.qos.QoSProfile(
+            depth=10,
+            history=rclpy.qos.QoSHistoryPolicy.KEEP_LAST,
+            durability=rclpy.qos.QoSDurabilityPolicy.VOLATILE,
         )
         state_qos = rclpy.qos.QoSProfile(
             depth=1,
@@ -189,7 +194,7 @@ class MetaWearRos(rclpy.node.Node):  # type: ignore
             reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE
         )
         self.pub_rotation = self.create_publisher(
-            geometry_msgs.msg.QuaternionStamped, rotation_topic, stream_qos
+            geometry_msgs.msg.QuaternionStamped, rotation_topic, rot_qos
         )
         self.rotation_topic = self.track_topic(rotation_topic)
         # DONE(Jerome): add appropriate qos for queue_size=10
